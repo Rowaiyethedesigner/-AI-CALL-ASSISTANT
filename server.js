@@ -27,47 +27,32 @@ app.get("/makecall", async (req, res) => {
     const call = await client.calls.create({
       to: to,
       from: fromNumber,
-      // ⚠️ Replace this ngrok link after running "ngrok http 3000"
-      url: "https://postdiagnostic-labradoritic-gudrun.ngrok-free.dev/voice",
+      url: "https://ai-call-assistant-znyw.onrender.com/voice", // 🔁 replace this with your Render domain
     });
 
-    console.log("✅ Call initiated:", call.sid);
-    res.send({ success: true, sid: call.sid });
+    console.log(`✅ Call initiated successfully. SID: ${call.sid}`);
+    res.json({ success: true, message: "Call initiated successfully", sid: call.sid });
   } catch (error) {
     console.error("❌ Error making the call:", error.message);
-    res.status(500).send({ success: false, error: error.message });
+    res.json({ success: false, error: error.message });
   }
 });
 
-// ====== TWILIO VOICE RESPONSE ======
+// ====== TWIML RESPONSE (Voice) ======
 app.post("/voice", (req, res) => {
-  res.set("Content-Type", "text/xml");
-  res.send(`
-    <Response>
-      <Say voice="alice">
-        Hi, this is Tosin from The Diamond Project — your virtual call assistant.
-        You recently received a message from The Diamond Project Initiative,
-        as one of those recommended to be a part of the project here in Abuja.
+  const twiml = new twilio.twiml.VoiceResponse();
+  twiml.say(
+    {
+      voice: "alice",
+      language: "en-GB",
+    },
+    "Hi, this is Tosin from the Diamond Project, your virtual call assistant. You received this call because you were recommended to be part of our project in Abuja. The Diamond Project is a non-governmental initiative focused on financial and personal development, helping individuals find new sources of income and empowering others. We’re hosting an event this Sunday at Novare Shopping Mall. If we reserve a spot for you, would you be available? Please confirm that we sent you this message at the end of this call. Thank you."
+  );
 
-        The Diamond Project is a non-governmental initiative focused on financial
-        and personal development. Our mission includes empowering individuals
-        looking for additional sources of income, as well as high-net-worth
-        individuals seeking ways to support and uplift people around them.
-
-        The reason we’re reaching out to you is because you were among those
-        handpicked to be part of an exclusive event happening at Novare Shopping Mall
-        this coming Sunday. If we go ahead and make a reservation for you,
-        would you be available?
-
-        Please go ahead and confirm that we sent a message to your number
-        at the end of this call. Thank you!
-      </Say>
-    </Response>
-  `);
+  res.type("text/xml");
+  res.send(twiml.toString());
 });
 
-// ====== SERVER LISTEN ======
-const PORT = 3000;
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-});
+// ====== START SERVER ======
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));

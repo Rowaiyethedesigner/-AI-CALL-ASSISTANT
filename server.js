@@ -1,58 +1,46 @@
-// ====== DEPENDENCIES ======
-require("dotenv").config();
 const express = require("express");
-const bodyParser = require("body-parser");
+const dotenv = require("dotenv");
 const twilio = require("twilio");
 
-// ====== APP SETUP ======
+dotenv.config();
 const app = express();
-app.use(bodyParser.urlencoded({ extended: false }));
+app.use(express.json());
 
-// ====== ENV VARIABLES ======
-const accountSid = process.env.TWILIO_ACCOUNT_SID;
-const authToken = process.env.TWILIO_AUTH_TOKEN;
-const fromNumber = process.env.TWILIO_PHONE_NUMBER;
+const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
 
-const client = twilio(accountSid, authToken);
-
-// ====== TEST ENV CHECK ======
-app.get("/checkenv", (req, res) => {
-  res.json({
-    TWILIO_ACCOUNT_SID: accountSid ? "✅ Loaded" : "❌ Missing",
-    TWILIO_AUTH_TOKEN: authToken ? "✅ Loaded" : "❌ Missing",
-    TWILIO_PHONE_NUMBER: fromNumber ? "✅ Loaded" : "❌ Missing",
-    PORT: process.env.PORT || "Not set",
+// ✅ Health check route
+app.get("/health", (req, res) => {
+  res.status(200).json({
+    status: "ok",
+    message: "Server is running successfully 🚀",
+    environment: {
+      TWILIO_ACCOUNT_SID: process.env.TWILIO_ACCOUNT_SID ? "✅ Loaded" : "❌ Missing",
+      TWILIO_AUTH_TOKEN: process.env.TWILIO_AUTH_TOKEN ? "✅ Loaded" : "❌ Missing",
+      TWILIO_PHONE_NUMBER: process.env.TWILIO_PHONE_NUMBER ? "✅ Loaded" : "❌ Missing",
+      PORT: process.env.PORT ? `✅ ${process.env.PORT}` : "❌ Missing"
+    },
+    timestamp: new Date().toISOString()
   });
 });
 
-// ====== MAKE CALL ENDPOINT ======
-app.get("/makecall", async (req, res) => {
-  const to = req.query.to;
-  if (!to) {
-    return res.status(400).send("Please provide a 'to' number in the URL, e.g. /makecall?to=+2348012345678");
-  }
-
+// ✅ Test Call Route
+app.post("/makecall", async (req, res) => {
   try {
     const call = await client.calls.create({
-      to: to,
-      from: fromNumber,
-      url: "https://ai-call-assistant-znyw.onrender.com/voice", // 👈 this points back to your Render app
+      to: process.env.TEST_PHONE_NUMBER, // Replace with verified number
+      from: process.env.TWILIO_PHONE_NUMBER,
+      url: "http://demo.twilio.com/docs/voice.xml"
     });
-    res.json({ success: true, sid: call.sid });
+
+    res.json({ success: true, callSid: call.sid });
   } catch (error) {
     console.error("❌ Error making the call:", error.message);
-    res.json({ success: false, error: error.message });
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
-// ====== VOICE RESPONSE ======
-app.post("/voice", (req, res) => {
-  const twiml = new twilio.twiml.VoiceResponse();
-  twiml.say("Hello, this is Rowaiye Call Assistant. Your booking request has been received. Thank you.");
-  res.type("text/xml");
-  res.send(twiml.toString());
+// ✅ Start the server
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`✅ Server running on port ${PORT}`);
 });
-
-// ====== START SERVER ======
-const port = process.env.PORT || 3000;
-app.listen(port, () => console.log(`Server running on port ${port}`));
